@@ -9,6 +9,7 @@ import { LogoutIcon } from './components/icons/LogoutIcon';
 import { getDistanceFromLatLonInMeters } from './utils/location';
 import { PublicView } from './components/PublicView';
 import { ShareIcon } from './components/icons/ShareIcon';
+import { AttendanceReceipt } from './components/AttendanceReceipt';
 
 type View = 'participant' | 'admin';
 
@@ -44,6 +45,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
   const [publicViewEventId, setPublicViewEventId] = useState<string | null>(null);
+  const [lastSubmission, setLastSubmission] = useState<{record: AttendanceRecord, eventName: string} | null>(null);
 
 
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -309,7 +311,9 @@ const App: React.FC = () => {
     }
 
     const event = events.find(e => e.id === participantSelectedEventId);
-    if(event?.attendanceLog.some(record => record.regNumber === regNumber)) {
+    if(!event) return;
+
+    if(event.attendanceLog.some(record => record.regNumber === regNumber)) {
       showToast('This registration number has already submitted attendance for this event.', 'error');
       return;
     }
@@ -329,7 +333,13 @@ const App: React.FC = () => {
         event
     ));
     showToast('Attendance submitted successfully!', 'success');
+    
+    setLastSubmission({ record: newRecord, eventName: event.name });
     resetForm();
+  };
+  
+  const handleReceiptDone = () => {
+    setLastSubmission(null);
     setParticipantSelectedEventId(null); // Go back to event list
   };
   
@@ -411,7 +421,9 @@ const App: React.FC = () => {
 
         {currentView === 'participant' && (
             <main className="max-w-4xl mx-auto">
-                {!participantSelectedEventId ? (
+                {lastSubmission ? (
+                  <AttendanceReceipt submission={lastSubmission} onDone={handleReceiptDone} />
+                ) : !participantSelectedEventId ? (
                      <div className="bg-white p-6 rounded-2xl shadow-lg border border-gray-200">
                         <h2 className="text-2xl font-bold mb-6 text-brand-primary">Select an Event</h2>
                         {activeEvents.length > 0 ? (

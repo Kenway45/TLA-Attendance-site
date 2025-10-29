@@ -17,6 +17,29 @@
         },
       }
     </script>
+    <style>
+      @media print {
+        body * {
+          visibility: hidden;
+        }
+        #receipt-container, #receipt-container * {
+          visibility: visible;
+        }
+        #receipt-container {
+          position: absolute;
+          left: 0;
+          top: 0;
+          width: 100%;
+          margin: 0;
+          padding: 0;
+          border: none;
+          box-shadow: none;
+        }
+        .no-print {
+          display: none !important;
+        }
+      }
+    </style>
   <script type="importmap">
 {
   "imports": {
