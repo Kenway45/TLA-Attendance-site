@@ -7,6 +7,8 @@ import { Toast } from './components/Toast';
 import { LoginScreen } from './components/LoginScreen';
 import { LogoutIcon } from './components/icons/LogoutIcon';
 import { getDistanceFromLatLonInMeters } from './utils/location';
+import { PublicView } from './components/PublicView';
+import { ShareIcon } from './components/icons/ShareIcon';
 
 type View = 'participant' | 'admin';
 
@@ -41,6 +43,8 @@ const App: React.FC = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [toast, setToast] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
+  const [publicViewEventId, setPublicViewEventId] = useState<string | null>(null);
+
 
   const videoRef = useRef<HTMLVideoElement>(null);
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -61,6 +65,37 @@ const App: React.FC = () => {
   useEffect(() => {
     localStorage.setItem('attendanceEvents', JSON.stringify(events));
   }, [events]);
+
+  // Public link routing
+  useEffect(() => {
+    const handleHashChange = () => {
+        const hash = window.location.hash;
+        if (hash.startsWith('#public/')) {
+            const eventId = hash.substring('#public/'.length);
+            // If events are loaded, validate the ID.
+            if (events.length > 0) {
+                const eventExists = events.some(e => e.id === eventId);
+                if (eventExists) {
+                    setPublicViewEventId(eventId);
+                } else {
+                    showToast('Public event link is invalid or event does not exist.', 'error');
+                    window.location.hash = '';
+                    setPublicViewEventId(null);
+                }
+            } else {
+                // If events are not loaded yet, optimistically set the ID.
+                // The main render logic will show a "loading" state.
+                setPublicViewEventId(eventId);
+            }
+        } else {
+            setPublicViewEventId(null);
+        }
+    };
+
+    handleHashChange(); // Check on initial load
+    window.addEventListener('hashchange', handleHashChange);
+    return () => window.removeEventListener('hashchange', handleHashChange);
+  }, [events]); // Re-run when events are loaded to validate the hash.
 
   const showToast = (message: string, type: 'success' | 'error') => {
     setToast({ message, type });
@@ -149,6 +184,15 @@ const App: React.FC = () => {
     a.click();
     document.body.removeChild(a);
     showToast('Exporting CSV!', 'success');
+  };
+
+  const handleShareEvent = (eventId: string) => {
+    const publicUrl = `${window.location.origin}${window.location.pathname}#public/${eventId}`;
+    navigator.clipboard.writeText(publicUrl).then(() => {
+        showToast('Public link copied to clipboard!', 'success');
+    }, () => {
+        showToast('Failed to copy link.', 'error');
+    });
   };
 
 
@@ -328,6 +372,18 @@ const App: React.FC = () => {
     record.regNumber.toLowerCase().includes(searchTerm.toLowerCase())
   ) ?? [];
 
+  if (publicViewEventId) {
+    const event = events.find(e => e.id === publicViewEventId);
+    if (!event) {
+        return (
+            <div className="min-h-screen flex items-center justify-center bg-gray-100">
+                <p className="text-gray-500">Loading event...</p>
+            </div>
+        )
+    }
+    return <PublicView event={event} />;
+  }
+
   return (
     <div className="min-h-screen bg-gray-100 p-4 sm:p-6 lg:p-8">
       <div className="max-w-7xl mx-auto">
@@ -450,15 +506,20 @@ const App: React.FC = () => {
                         <div className="space-y-3 max-h-96 overflow-y-auto">
                             {events.map(event => (
                                 <div key={event.id} className={`p-3 rounded-lg border ${adminSelectedEventId === event.id ? 'bg-blue-100 border-brand-primary' : 'bg-gray-50 border-gray-200'}`}>
-                                    <div className="flex justify-between items-center">
-                                        <button onClick={() => setAdminSelectedEventId(event.id)} className="text-left flex-1">
+                                    <div className="flex justify-between items-center gap-2">
+                                        <button onClick={() => setAdminSelectedEventId(prevId => prevId === event.id ? null : event.id)} className="text-left flex-1">
                                             <p className="font-semibold">{event.name}</p>
                                             <p className="text-xs text-gray-500">{event.attendanceLog.length} attendees</p>
                                         </button>
-                                        {event.isActive ? 
-                                          <button onClick={() => handleToggleEventStatus(event.id, false)} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-md hover:bg-red-200">Close</button> :
-                                          <button onClick={() => handleToggleEventStatus(event.id, true)} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md hover:bg-green-200">Start</button>
-                                        }
+                                        <div className="flex items-center gap-2">
+                                            <button onClick={() => handleShareEvent(event.id)} title="Copy public link" className="p-1.5 text-gray-500 hover:text-brand-primary hover:bg-blue-100 rounded-full transition">
+                                                <ShareIcon className="h-5 w-5" />
+                                            </button>
+                                            {event.isActive ? 
+                                            <button onClick={() => handleToggleEventStatus(event.id, false)} className="text-xs bg-red-100 text-red-700 px-2 py-1 rounded-md hover:bg-red-200">Close</button> :
+                                            <button onClick={() => handleToggleEventStatus(event.id, true)} className="text-xs bg-green-100 text-green-700 px-2 py-1 rounded-md hover:bg-green-200">Start</button>
+                                            }
+                                        </div>
                                     </div>
                                 </div>
                             ))}
