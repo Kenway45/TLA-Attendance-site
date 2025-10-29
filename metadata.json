@@ -1,0 +1,8 @@
+{
+  "name": "TLA attandence tracker",
+  "description": "An application for participants to mark their attendance by capturing their name, registration number, live location, and a selfie from the venue. The attendance log is updated in real-time.",
+  "requestFramePermissions": [
+    "camera",
+    "geolocation"
+  ]
+}
